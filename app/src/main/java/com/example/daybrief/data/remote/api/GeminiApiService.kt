@@ -7,6 +7,6 @@ import retrofit2.http.POST
 
 interface GeminiApiService {
 
-    @POST("v1beta/models/gemini-2.0-flash:generateContent")
+    @POST("v1beta/models/gemini-2.5-flash:generateContent")
     suspend fun generateContent(@Body request: GeminiRequestDto): GeminiResponseDto
 }
