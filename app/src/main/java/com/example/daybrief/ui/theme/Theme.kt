@@ -1,58 +1,82 @@
 package com.example.daybrief.ui.theme
 
 import android.app.Activity
-import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.dynamicDarkColorScheme
-import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.platform.LocalContext
-
-private val DarkColorScheme = darkColorScheme(
-    primary = Purple80,
-    secondary = PurpleGrey80,
-    tertiary = Pink80
-)
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.LocalView
+import androidx.core.view.WindowCompat
 
 private val LightColorScheme = lightColorScheme(
-    primary = Purple40,
-    secondary = PurpleGrey40,
-    tertiary = Pink40
+    primary               = Blue40,
+    onPrimary             = Color.White,
+    primaryContainer      = Blue90,
+    onPrimaryContainer    = Blue10,
+    secondary             = Color(0xFF545F71),
+    onSecondary           = Color.White,
+    secondaryContainer    = Color(0xFFD8E3F8),
+    onSecondaryContainer  = Color(0xFF111C2B),
+    tertiary              = Amber40,
+    onTertiary            = Color.White,
+    tertiaryContainer     = Color(0xFFFFDBCC),
+    onTertiaryContainer   = Color(0xFF3A0A00),
+    background            = Neutral99,
+    onBackground          = Neutral10,
+    surface               = Neutral99,
+    onSurface             = Neutral10,
+    surfaceVariant        = NeutralVar90,
+    onSurfaceVariant      = Color(0xFF44474F),
+    outline               = NeutralVar50,
+    outlineVariant        = NeutralVar80,
+)
 
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
+private val DarkColorScheme = darkColorScheme(
+    primary               = Blue80,
+    onPrimary             = Blue20,
+    primaryContainer      = Blue40,
+    onPrimaryContainer    = Blue90,
+    secondary             = Color(0xFFBCC8E0),
+    onSecondary           = Color(0xFF263344),
+    secondaryContainer    = Color(0xFF3C4858),
+    onSecondaryContainer  = Color(0xFFD8E3F8),
+    tertiary              = Amber80,
+    onTertiary            = Color(0xFF5C1900),
+    tertiaryContainer     = Color(0xFF833200),
+    onTertiaryContainer   = Color(0xFFFFDBCC),
+    background            = Neutral10,
+    onBackground          = Neutral90,
+    surface               = Neutral10,
+    onSurface             = Neutral90,
+    surfaceVariant        = Color(0xFF44474F),
+    onSurfaceVariant      = NeutralVar80,
+    outline               = NeutralVar60,
+    outlineVariant        = Color(0xFF44474F),
 )
 
 @Composable
 fun DayBriefTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
-    content: @Composable () -> Unit
+    content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
-        dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
-            val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
-        }
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
 
-        darkTheme -> DarkColorScheme
-        else -> LightColorScheme
+    val view = LocalView.current
+    if (!view.isInEditMode) {
+        SideEffect {
+            val window = (view.context as Activity).window
+            window.statusBarColor = colorScheme.primary.toArgb()
+            WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = !darkTheme
+        }
     }
 
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
-        content = content
+        content = content,
     )
 }

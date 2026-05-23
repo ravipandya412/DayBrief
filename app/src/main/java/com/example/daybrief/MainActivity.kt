@@ -1,37 +1,42 @@
 package com.example.daybrief
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.viewModels
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.ui.Alignment
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
+import androidx.navigation.compose.rememberNavController
+import androidx.work.WorkInfo
+import androidx.work.WorkManager
 import com.example.daybrief.di.AppModule
-import com.example.daybrief.presentation.BriefingUiState
+import com.example.daybrief.notification.NotificationHelper
 import com.example.daybrief.presentation.BriefingViewModel
+import com.example.daybrief.ui.HomeScreen
+import com.example.daybrief.ui.SettingsScreen
 import com.example.daybrief.ui.theme.DayBriefTheme
+import com.example.daybrief.worker.BriefingWorker
+import com.example.daybrief.worker.WorkScheduler
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
+    private val notificationPermissionLauncher =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) { /* no-op */ }
+
     private val viewModel: BriefingViewModel by viewModels {
         AppModule.provideBriefingViewModelFactory(
+            context = applicationContext,
             newsApiKey = BuildConfig.NEWS_API_KEY,
             geminiApiKey = BuildConfig.GEMINI_API_KEY,
         )
@@ -39,64 +44,67 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        NotificationHelper.createChannel(this)
+        requestNotificationPermissionIfNeeded()
+        scheduleOnFirstLaunchOnly()
         enableEdgeToEdge()
         setContent {
             DayBriefTheme {
                 val uiState by viewModel.uiState.collectAsState()
-                BriefingScreen(
-                    uiState = uiState,
-                    onGetBriefing = viewModel::fetchBriefing,
-                )
+                val navController = rememberNavController()
+
+                NavHost(navController = navController, startDestination = "home") {
+                    composable("home") {
+                        HomeScreen(
+                            briefingState = uiState.briefingState,
+                            history = uiState.history,
+                            onGetBriefing = viewModel::fetchBriefing,
+                            onNavigateToSettings = { navController.navigate("settings") },
+                        )
+                    }
+                    composable("settings") {
+                        SettingsScreen(
+                            settings = uiState.settings,
+                            onSettingsChange = { newSettings ->
+                                viewModel.updateSettings(newSettings)
+                                // Reschedule with the user's chosen time
+                                WorkScheduler.scheduleDailyBriefing(
+                                    this@MainActivity,
+                                    newSettings.notificationHour,
+                                    newSettings.notificationMinute,
+                                )
+                            },
+                            onBack = { navController.popBackStack() },
+                        )
+                    }
+                }
             }
         }
     }
-}
 
-@Composable
-fun BriefingScreen(
-    uiState: BriefingUiState,
-    onGetBriefing: () -> Unit,
-) {
-    Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .padding(horizontal = 24.dp, vertical = 16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = "DayBrief",
-                style = MaterialTheme.typography.headlineLarge,
-            )
-            Text(
-                text = "Your AI-powered morning briefing",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(
-                onClick = onGetBriefing,
-                enabled = uiState !is BriefingUiState.Loading,
-                modifier = Modifier.fillMaxWidth(),
+    private fun requestNotificationPermissionIfNeeded() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
+                != PackageManager.PERMISSION_GRANTED
             ) {
-                Text(
-                    text = if (uiState is BriefingUiState.Loading) "Fetching briefing..." else "Get Morning Briefing"
-                )
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
             }
-            when (uiState) {
-                is BriefingUiState.Idle -> Unit
-                is BriefingUiState.Loading -> CircularProgressIndicator()
-                is BriefingUiState.Success -> Text(
-                    text = uiState.briefing,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
-                )
-                is BriefingUiState.Error -> Text(
-                    text = "Error: ${uiState.message}",
-                    color = MaterialTheme.colorScheme.error,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+        }
+    }
+
+    // Only schedule the default 7 AM job on the very first launch.
+    // After that, the user controls the time via Settings, which calls WorkScheduler directly.
+    // This prevents onCreate from overwriting the user's saved preference on every open.
+    private fun scheduleOnFirstLaunchOnly() {
+        lifecycleScope.launch {
+            val workInfos = WorkManager.getInstance(applicationContext)
+                .getWorkInfosForUniqueWorkFlow(BriefingWorker.WORK_NAME)
+                .first()
+            val hasActiveWork = workInfos.any {
+                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
+            }
+            if (!hasActiveWork) {
+                WorkScheduler.scheduleDailyBriefing(applicationContext)
             }
         }
     }

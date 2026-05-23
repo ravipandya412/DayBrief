@@ -1,39 +1,33 @@
 package com.example.daybrief.data.repository
 
+import com.example.daybrief.data.local.LocalDataSource
 import com.example.daybrief.data.remote.GeminiRemoteDataSource
+import com.example.daybrief.domain.model.AppSettings
+import com.example.daybrief.domain.model.BriefingEntry
 import com.example.daybrief.domain.repository.BriefingRepository
 import com.example.daybrief.domain.repository.NewsRepository
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.Flow
 
 class BriefingRepositoryImpl(
     private val newsRepository: NewsRepository,
     private val geminiDataSource: GeminiRemoteDataSource,
+    private val localDataSource: LocalDataSource,
 ) : BriefingRepository {
 
-    private val topics = listOf("android development", "artificial intelligence", "technology")
-
-    override suspend fun generateMorningBriefing(): String {
-        val articles = coroutineScope {
-            topics
-                .map { topic -> async { newsRepository.getHeadlines(topic, pageSize = 10) } }
-                .awaitAll()
-                .flatten()
+    override suspend fun generateMorningBriefing(topics: List<String>): String =
+        geminiDataSource.runAgent(topics) { topic, limit ->
+            newsRepository.getHeadlines(topic, limit)
         }
 
-        val headlinesList = articles.joinToString("\n") { article ->
-            "- [${article.topic}] ${article.title} (${article.source})"
-        }
+    override fun getBriefingHistory(): Flow<List<BriefingEntry>> =
+        localDataSource.briefingHistory
 
-        val prompt = """
-            You are a personal tech briefing assistant for a senior Android developer.
-            Summarize these headlines into a crisp, insightful morning briefing covering Android dev, AI and Tech news.
+    override suspend fun saveBriefing(entry: BriefingEntry) =
+        localDataSource.saveBriefing(entry)
 
-            Headlines:
-            $headlinesList
-        """.trimIndent()
+    override fun getSettings(): Flow<AppSettings> =
+        localDataSource.settings
 
-        return geminiDataSource.generateContent(prompt)
-    }
+    override suspend fun saveSettings(settings: AppSettings) =
+        localDataSource.saveSettings(settings)
 }

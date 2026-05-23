@@ -67,6 +67,10 @@ dependencies {
     // ViewModel
     implementation(libs.androidx.lifecycle.viewmodel.ktx)
 
+    // Navigation
+    implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.compose.material.icons.extended)
+
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
 
