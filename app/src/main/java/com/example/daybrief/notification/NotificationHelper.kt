@@ -12,6 +12,7 @@ object NotificationHelper {
 
     private const val CHANNEL_ID = "daybrief_channel"
     private const val NOTIFICATION_ID = 1001
+    const val ACTION_OPEN_BRIEFING = "com.example.daybrief.ACTION_OPEN_BRIEFING"
 
     fun createChannel(context: Context) {
         val channel = NotificationChannel(
@@ -27,7 +28,9 @@ object NotificationHelper {
 
     fun sendBriefingNotification(context: Context, briefingSnippet: String) {
         val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            action = ACTION_OPEN_BRIEFING
+            // SINGLE_TOP so the running activity gets onNewIntent instead of a fresh instance
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         }
         val pendingIntent = PendingIntent.getActivity(
             context, 0, intent,
@@ -37,7 +40,7 @@ object NotificationHelper {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("Your Morning Briefing is Ready")
-            .setContentText(briefingSnippet.take(100))
+            .setContentText(briefingSnippet.take(120))
             .setStyle(NotificationCompat.BigTextStyle().bigText(briefingSnippet.take(400)))
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)

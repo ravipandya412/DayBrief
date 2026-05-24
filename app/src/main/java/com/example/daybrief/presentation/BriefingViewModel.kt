@@ -9,8 +9,11 @@ import com.example.daybrief.domain.usecase.GenerateBriefingUseCase
 import com.example.daybrief.domain.usecase.GetBriefingHistoryUseCase
 import com.example.daybrief.domain.usecase.GetSettingsUseCase
 import com.example.daybrief.domain.usecase.SaveSettingsUseCase
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -25,6 +28,13 @@ class BriefingViewModel(
 
     private val _uiState = MutableStateFlow(BriefingUiState())
     val uiState: StateFlow<BriefingUiState> = _uiState.asStateFlow()
+
+    private val _navigationEvent = MutableSharedFlow<String>(extraBufferCapacity = 1)
+    val navigationEvent: SharedFlow<String> = _navigationEvent.asSharedFlow()
+
+    fun openLatestBriefing() {
+        _navigationEvent.tryEmit("briefing_detail")
+    }
 
     init {
         viewModelScope.launch {
