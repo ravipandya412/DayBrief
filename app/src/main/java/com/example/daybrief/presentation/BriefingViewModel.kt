@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import retrofit2.HttpException
@@ -33,7 +34,14 @@ class BriefingViewModel(
     val navigationEvent: SharedFlow<String> = _navigationEvent.asSharedFlow()
 
     fun openLatestBriefing() {
-        _navigationEvent.tryEmit("briefing_detail")
+        viewModelScope.launch {
+            // Navigate back to home first (in case user is on settings)
+            _navigationEvent.emit("home")
+            // Load the latest saved briefing into the main card
+            val briefingText = _uiState.value.history.firstOrNull()?.briefing
+                ?: uiState.first { it.history.isNotEmpty() }.history.first().briefing
+            _uiState.update { it.copy(briefingState = BriefingState.Success(briefingText)) }
+        }
     }
 
     init {

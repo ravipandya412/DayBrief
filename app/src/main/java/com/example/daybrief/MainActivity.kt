@@ -23,7 +23,6 @@ import androidx.work.WorkManager
 import com.example.daybrief.di.AppModule
 import com.example.daybrief.notification.NotificationHelper
 import com.example.daybrief.presentation.BriefingViewModel
-import com.example.daybrief.ui.BriefingDetailScreen
 import com.example.daybrief.ui.HomeScreen
 import com.example.daybrief.ui.SettingsScreen
 import com.example.daybrief.ui.theme.DayBriefTheme
@@ -65,7 +64,11 @@ class MainActivity : ComponentActivity() {
                 // Collect one-shot navigation events (e.g. from notification tap)
                 LaunchedEffect(Unit) {
                     viewModel.navigationEvent.collect { destination ->
-                        navController.navigate(destination)
+                        if (destination == "home") {
+                            navController.popBackStack("home", inclusive = false)
+                        } else {
+                            navController.navigate(destination)
+                        }
                     }
                 }
 
@@ -92,13 +95,8 @@ class MainActivity : ComponentActivity() {
                             onBack = { navController.popBackStack() },
                         )
                     }
-                    composable("briefing_detail") {
-                        BriefingDetailScreen(
-                            entry = uiState.history.firstOrNull(),
-                            onBack = { navController.popBackStack() },
-                        )
-                    }
                 }
+
             }
         }
     }
