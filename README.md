@@ -133,4 +133,8 @@ Each layer has a single responsibility. Dependencies only point inward — outer
 ├─────────────────────────────────────────────┤
 │                Data Layer                   │  ← APIs, DataStore, Repository impls
 └─────────────────────────────────────────────┘
-[daybrief.mp4](../../../Downloads/daybrief.mp4)
+
+
+
+https://github.com/user-attachments/assets/8a7c477a-a73c-446a-869a-3acc91df578c
+
