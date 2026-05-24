@@ -4,7 +4,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import com.example.daybrief.di.DataStoreModule
-import com.example.daybrief.worker.WorkScheduler
+import com.example.daybrief.worker.AlarmScheduler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
@@ -19,7 +19,11 @@ class BootReceiver : BroadcastReceiver() {
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 val settings = DataStoreModule.provideLocalDataSource(context).settings.first()
-                WorkScheduler.scheduleDailyBriefing(context, settings.notificationHour, settings.notificationMinute)
+                AlarmScheduler.scheduleDailyBriefing(
+                    context,
+                    settings.notificationHour,
+                    settings.notificationMinute,
+                )
             } finally {
                 pendingResult.finish()
             }

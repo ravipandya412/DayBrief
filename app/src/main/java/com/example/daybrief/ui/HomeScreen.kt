@@ -287,60 +287,9 @@ private fun LoadingContent() {
     }
 }
 
-private val SECTION_HEADER_REGEX = Regex("""^\*{1,2}(.+?)\*{0,2}:?\s*$""")
-
 @Composable
 private fun BriefingContent(text: String) {
-    val allLines = text.trim().lines()
-
-    // First non-blank line is the greeting headline
-    val introLine = allLines.firstOrNull { it.isNotBlank() }?.trim().orEmpty()
-    val bodyLines  = if (introLine.isNotBlank()) allLines.drop(1) else allLines
-
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        if (introLine.isNotBlank()) {
-            Text(
-                text = introLine,
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Spacer(Modifier.height(4.dp))
-        }
-
-        bodyLines.forEach { raw ->
-            val line = raw.trim()
-            when {
-                line.isBlank() -> Spacer(Modifier.height(6.dp))
-
-                // Lines wrapped in ** or * — section headers from Gemini markdown
-                SECTION_HEADER_REGEX.matches(line) -> {
-                    val title = SECTION_HEADER_REGEX.find(line)
-                        ?.groupValues?.getOrNull(1)?.trimEnd('*', ':', ' ').orEmpty()
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = title,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary,
-                        fontSize = 19.sp,
-                    )
-                    HorizontalDivider(
-                        modifier = Modifier.padding(vertical = 4.dp),
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.25f),
-                        thickness = 1.dp,
-                    )
-                }
-
-                // Regular body paragraph
-                else -> Text(
-                    text = line,
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
+    BriefingRenderer(text)
 }
 
 @Composable

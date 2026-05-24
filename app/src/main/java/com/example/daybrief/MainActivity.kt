@@ -18,16 +18,13 @@ import androidx.lifecycle.lifecycleScope
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import androidx.work.WorkInfo
-import androidx.work.WorkManager
 import com.example.daybrief.di.AppModule
 import com.example.daybrief.notification.NotificationHelper
 import com.example.daybrief.presentation.BriefingViewModel
 import com.example.daybrief.ui.HomeScreen
 import com.example.daybrief.ui.SettingsScreen
 import com.example.daybrief.ui.theme.DayBriefTheme
-import com.example.daybrief.worker.BriefingWorker
-import com.example.daybrief.worker.WorkScheduler
+import com.example.daybrief.worker.AlarmScheduler
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -48,9 +45,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         NotificationHelper.createChannel(this)
         requestNotificationPermissionIfNeeded()
-        scheduleOnFirstLaunchOnly()
+        scheduleAlarm()
 
-        // If launched directly from notification, open briefing detail
         if (intent?.action == NotificationHelper.ACTION_OPEN_BRIEFING) {
             viewModel.openLatestBriefing()
         }
@@ -61,7 +57,6 @@ class MainActivity : ComponentActivity() {
                 val uiState by viewModel.uiState.collectAsState()
                 val navController = rememberNavController()
 
-                // Collect one-shot navigation events (e.g. from notification tap)
                 LaunchedEffect(Unit) {
                     viewModel.navigationEvent.collect { destination ->
                         if (destination == "home") {
@@ -86,7 +81,7 @@ class MainActivity : ComponentActivity() {
                             settings = uiState.settings,
                             onSettingsChange = { newSettings ->
                                 viewModel.updateSettings(newSettings)
-                                WorkScheduler.scheduleDailyBriefing(
+                                AlarmScheduler.scheduleDailyBriefing(
                                     this@MainActivity,
                                     newSettings.notificationHour,
                                     newSettings.notificationMinute,
@@ -96,12 +91,10 @@ class MainActivity : ComponentActivity() {
                         )
                     }
                 }
-
             }
         }
     }
 
-    // Called when the app is already running and the user taps the notification
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         if (intent.action == NotificationHelper.ACTION_OPEN_BRIEFING) {
@@ -119,17 +112,20 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun scheduleOnFirstLaunchOnly() {
+    // Schedule on every launch using the saved setting — AlarmManager replaces
+    // any existing alarm so this is safe to call repeatedly (idempotent).
+    private fun scheduleAlarm() {
         lifecycleScope.launch {
-            val workInfos = WorkManager.getInstance(applicationContext)
-                .getWorkInfosForUniqueWorkFlow(BriefingWorker.WORK_NAME)
-                .first()
-            val hasActiveWork = workInfos.any {
-                it.state == WorkInfo.State.ENQUEUED || it.state == WorkInfo.State.RUNNING
-            }
-            if (!hasActiveWork) {
-                WorkScheduler.scheduleDailyBriefing(applicationContext)
-            }
+            val settings = AppModule.provideBriefingRepository(
+                context = applicationContext,
+                newsApiKey = BuildConfig.NEWS_API_KEY,
+                geminiApiKey = BuildConfig.GEMINI_API_KEY,
+            ).getSettings().first()
+            AlarmScheduler.scheduleDailyBriefing(
+                applicationContext,
+                settings.notificationHour,
+                settings.notificationMinute,
+            )
         }
     }
 }
