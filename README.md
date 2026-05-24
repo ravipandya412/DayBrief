@@ -136,5 +136,6 @@ Each layer has a single responsibility. Dependencies only point inward — outer
 
 
 
-https://github.com/user-attachments/assets/8a7c477a-a73c-446a-869a-3acc91df578c
+https://github.com/user-attachments/assets/8a7c477a-a73c-446a-869a-3acc91df578c.mp4
+
 
